@@ -127,6 +127,16 @@ export default {
           const detalhe = await axios.get(p.url);
           const especie = await axios.get(detalhe.data.species.url);
 
+          // Selecionar o genus no idioma correto (exemplo: inglês)
+          const genus = especie.data.genera.find(
+            (g) => g.language.name === "en" // Troque "en" por "pt-BR" se quiser português
+          )?.genus;
+
+          // Atualizar espécies para o select
+          if (genus && !this.especiesDisponiveis.includes(genus)) {
+            this.especiesDisponiveis.push(genus);
+          }
+
           // Evoluções
           const cadeiaUrl = especie.data.evolution_chain?.url;
           let evolucoes = [];
@@ -135,14 +145,10 @@ export default {
             evolucoes = this.extrairEvolucoes(cadeia.data.chain);
           }
 
-          // Atualizar espécies únicas para o select
-          if (!this.especiesDisponiveis.includes(especie.data.name)) {
-            this.especiesDisponiveis.push(especie.data.name);
-          }
-
           return {
             ...detalhe.data,
             especie: especie.data,
+            genus, // Adiciona o genus ao Pokémon
             evolucoes,
           };
         });
@@ -179,8 +185,7 @@ export default {
           (t) => t.type.name.toLowerCase() === tipo.toLowerCase()
         );
       const correspondeEspecie =
-        !especie ||
-        pokemon.especie.name.toLowerCase() === especie.toLowerCase();
+        !especie || pokemon.genus?.toLowerCase() === especie.toLowerCase();
 
       return (
         correspondeNome &&

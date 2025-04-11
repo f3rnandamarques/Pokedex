@@ -83,7 +83,8 @@ export default {
       return this.pokemon.types.map((t) => t.type.name).join(", ");
     },
     especie() {
-      return this.pokemon.species?.name || "Desconhecida";
+      // Acessa o campo genus corretamente
+      return this.pokemon.genus || "Desconhecida";
     },
     spritesFiltrados() {
       const sprites = this.pokemon.sprites;
