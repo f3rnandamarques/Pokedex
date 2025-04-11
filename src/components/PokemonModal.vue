@@ -1,170 +1,178 @@
 <template>
-    <div class="modal-overlay" @click.self="$emit('close')">
-      <div class="modal-content">
-        <button class="close-button" @click="$emit('close')">X</button>
-  
-        <div v-if="pokemon">
-          <h2>{{ capitalize(pokemon.name) }} (ID: {{ pokemon.id }})</h2>
-  
-          <div class="tabs">
-            <button @click="activeTab = 'sprites'" :class="{ active: activeTab === 'sprites' }">Sprites</button>
-            <button @click="activeTab = 'moves'" :class="{ active: activeTab === 'moves' }">Movimentos</button>
-            <button @click="activeTab = 'evolutions'" :class="{ active: activeTab === 'evolutions' }">Evoluções</button>
-            <button @click="activeTab = 'games'" :class="{ active: activeTab === 'games' }">Games</button>
-          </div>
-  
-          <div v-if="activeTab === 'sprites'" class="sprites">
-            <h3>Sprites</h3>
-            <div>
-              <img v-for="(img, i) in spriteList" :key="i" :src="img" :alt="pokemon.name" />
-            </div>
-          </div>
-  
-          <div v-if="activeTab === 'moves'">
-            <h3>Movimentos</h3>
-            <ul>
-              <li v-for="(move, index) in pokemon.moves" :key="index">
-                {{ capitalize(move.move.name) }}
-              </li>
-            </ul>
-          </div>
-  
-          <div v-if="activeTab === 'evolutions'">
-            <h3>Evoluções</h3>
-            <ul v-if="evolutionChain.length">
-              <li v-for="(evo, i) in evolutionChain" :key="i">{{ capitalize(evo) }}</li>
-            </ul>
-            <p v-else>Este Pokémon não possui evoluções.</p>
-          </div>
-  
-          <div v-if="activeTab === 'games'">
-            <h3>Games</h3>
-            <ul>
-              <li v-for="(game, index) in pokemon.game_indices" :key="index">
-                {{ capitalize(game.version.name) }}
-              </li>
-            </ul>
-          </div>
+  <div class="modal-overlay" @click.self="$emit('close')">
+    <div class="modal">
+      <button class="fechar" @click="$emit('close')">Fechar</button>
+      <h2 class="titulo">{{ pokemon.name }}</h2>
+
+      <!-- Abas -->
+      <div class="tabs">
+        <button
+          v-for="tab in abas"
+          :key="tab"
+          :class="{ ativa: abaAtiva === tab }"
+          @click="abaAtiva = tab"
+        >
+          {{ tab }}
+        </button>
+      </div>
+
+      <!-- Conteúdo das Abas -->
+      <div class="conteudo-tab">
+        <!-- Informações -->
+        <div v-if="abaAtiva === 'Informações'">
+          <p><strong>Nome:</strong> {{ pokemon.name }}</p>
+          <p><strong>ID:</strong> {{ pokemon.id }}</p>
+          <p><strong>Tipo(s):</strong> {{ tipos }}</p>
+          <p><strong>Espécie:</strong> {{ especie }}</p>
         </div>
-  
-        <div v-else>
-          <p>Carregando detalhes...</p>
+
+        <!-- Sprites -->
+        <div v-else-if="abaAtiva === 'Sprites'">
+          <img
+            v-for="(sprite, chave) in spritesFiltrados"
+            :key="chave"
+            :src="sprite"
+            :alt="chave"
+            class="sprite"
+          />
+        </div>
+
+        <!-- Movimentos -->
+        <div v-else-if="abaAtiva === 'Movimentos'">
+          <ul>
+            <li v-for="mov in pokemon.moves" :key="mov.move.name">
+              {{ mov.move.name }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Evoluções -->
+        <div v-else-if="abaAtiva === 'Evoluções'">
+          <ul v-if="pokemon.evolucoes && pokemon.evolucoes.length">
+            <li v-for="evo in pokemon.evolucoes" :key="evo">{{ evo }}</li>
+          </ul>
+          <p v-else>Nenhuma evolução encontrada.</p>
+        </div>
+
+        <!-- Games -->
+        <div v-else-if="abaAtiva === 'Games'">
+          <ul>
+            <li v-for="g in pokemon.game_indices" :key="g.version.name">
+              {{ g.version.name }}
+            </li>
+          </ul>
         </div>
       </div>
     </div>
-  </template>
-  
-  <script>
-  import axios from "axios";
-  
-  export default {
-    props: ["name"],
-    data() {
-      return {
-        pokemon: null,
-        evolutionChain: [],
-        activeTab: "sprites",
-      };
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    pokemon: Object,
+  },
+  data() {
+    return {
+      abaAtiva: "Informações",
+      abas: ["Informações", "Sprites", "Movimentos", "Evoluções", "Games"],
+    };
+  },
+  computed: {
+    tipos() {
+      return this.pokemon.types.map((t) => t.type.name).join(", ");
     },
-    async created() {
-      try {
-        const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${this.name}`);
-        this.pokemon = res.data;
-  
-        const speciesRes = await axios.get(this.pokemon.species.url);
-        const evoRes = await axios.get(speciesRes.data.evolution_chain.url);
-        this.evolutionChain = this.extractEvolutionChain(evoRes.data.chain);
-      } catch (error) {
-        console.error("Erro ao carregar detalhes do Pokémon:", error);
-      }
+    especie() {
+      return this.pokemon.species?.name || "Desconhecida";
     },
-    computed: {
-      spriteList() {
-        if (!this.pokemon?.sprites) return [];
-        return Object.values(this.pokemon.sprites).filter(
-          (img) => typeof img === "string" && img !== null
-        );
-      },
-    },
-    methods: {
-      capitalize(value) {
-        return value ? value.charAt(0).toUpperCase() + value.slice(1) : "";
-      },
-      extractEvolutionChain(chain) {
-        const evolutions = [];
-        let current = chain;
-        while (current) {
-          evolutions.push(current.species.name);
-          current = current.evolves_to[0];
+    spritesFiltrados() {
+      const sprites = this.pokemon.sprites;
+      const validSprites = {};
+      for (const chave in sprites) {
+        if (
+          sprites[chave] &&
+          typeof sprites[chave] === "string" &&
+          sprites[chave].includes("https")
+        ) {
+          validSprites[chave] = sprites[chave];
         }
-        return evolutions;
-      },
+      }
+      return validSprites;
     },
-  };
-  </script>
-  
-  <style scoped>
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-  
-  .modal-content {
-    background: white;
-    border-radius: 12px;
-    padding: 2rem;
-    max-height: 90vh;
-    overflow-y: auto;
-    max-width: 600px;
-    width: 90%;
-    position: relative;
-  }
-  
-  .close-button {
-    position: absolute;
-    top: 0.5rem;
-    right: 1rem;
-    border: none;
-    background: red;
-    color: white;
-    font-size: 1rem;
-    padding: 0.4rem 0.6rem;
-    border-radius: 50%;
-    cursor: pointer;
-  }
-  
-  .sprites img {
-    width: 80px;
-    margin: 0.5rem;
-  }
-  
-  .tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .tabs button {
-    padding: 0.5rem 1rem;
-    border: none;
-    background: #eee;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  
-  .tabs button.active {
-    background: #3b82f6;
-    color: white;
-    font-weight: bold;
-  }
-  </style>
-  
+  },
+};
+</script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  width: 95%;
+  max-width: 500px;
+  max-height: 95vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.fechar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #eee;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.titulo {
+  text-transform: capitalize;
+  text-align: center;
+}
+
+.tabs {
+  display: flex;
+  justify-content: space-around;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.tabs button {
+  flex: 1;
+  padding: 0.5rem;
+  background: #eee;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 2px;
+}
+
+.tabs button.ativa {
+  background: #c62828;
+  color: white;
+  font-weight: bold;
+}
+
+.conteudo-tab {
+  text-align: center;
+}
+
+.sprite {
+  width: 96px;
+  margin: 0.5rem;
+}
+</style>
